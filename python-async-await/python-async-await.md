@@ -4,14 +4,12 @@ Async/Await is a powerful tool available to you, so it is important to understan
 
 ### A Quick Aside About This Article
 
-All the examples are available to run on my GitHub. Just clone my [Blog Posts](https://github.com/ZechCodes/Blog-Posts/) repository, open the "python-async-await" directory, install the dependencies using Poetry, and run the example you're interested in. 
+All the examples are available to run on my GitHub. Just clone my [Blog Posts](https://github.com/ZechCodes/Blog-Posts/) repository, open the "python-async-await" directory, run the example you're interested in using [uv](https://docs.astral.sh/uv/getting-started/). 
 
 ```shell
 git clone https://github.com/ZechCodes/Blog-Posts/
 cd Blog-Posts/python-async-await
-poetry install
-poetry shell
-python example-1-sync-requests.py
+uv run example-1-sync-requests.py
 ```
 
 ## Why Use Async/Await
