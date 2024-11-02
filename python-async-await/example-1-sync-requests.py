@@ -20,7 +20,7 @@ def main():
         print(f"Requested {name} in {duration:.2f} seconds")
 
     end = time.perf_counter()
-    print(f"Runtime {end - start:0.2f} seconds, cumulative runtime {total_duration:0.2f} seconds")
+    print(f"Runtime {end - start:0.2f} seconds, cumulative run time {total_duration:0.2f} seconds")
 
 
 if __name__ == "__main__":

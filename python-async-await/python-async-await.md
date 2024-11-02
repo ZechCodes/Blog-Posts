@@ -41,13 +41,13 @@ def main():
         print(f"Requested {name} in {duration:.2f} seconds")
 
     end = time.perf_counter()
-    print(f"Runtime {end - start:0.2f} seconds, cumulative runtime {total_duration:0.2f} seconds")
+    print(f"Run time {end - start:0.2f} seconds, cumulative run time {total_duration:0.2f} seconds")
 
 if __name__ == "__main__":
     main()
 ```
 
-You'll notice that the total runtime is roughly the same as the cumulative runtime of each request. So its apparent that the requests are being made in sequence and the code is stopping as it waits for each request response.
+You'll notice that the total run time is roughly the same as the cumulative run time of each request. So its apparent that the requests are being made in sequence and the code is stopping as it waits for each request response.
 
 It would be much faster if the requests didn't block each other and could run concurrently, this is where Async/Await comes in.
 
@@ -80,13 +80,13 @@ async def main():
         print(f"Requested {site} in {duration:.2f} seconds")
 
     end = time.perf_counter()
-    print(f"Runtime {end - start:0.2f} seconds, cumulative runtime {total_duration:0.2f} seconds")
+    print(f"Run time {end - start:0.2f} seconds, cumulative run time {total_duration:0.2f} seconds")
 
 if __name__ == "__main__":
     asyncio.run(main())
 ```
 
-This code is a bit more complex, but when we run it we see that the runtime is always less than the cumulative runtime. We can even see that the runtime is only a little longer than the slowest request. This tells us that each request is running concurrently and that no request is blocking the others while waiting for the response. 
+This code is a bit more complex, but when we run it we see that the run time is always less than the cumulative run time. We can even see that the run time is only a little longer than the slowest request. This tells us that each request is running concurrently and that no request is blocking the others while waiting for the response. 
 
 ## What Even Is Async/Await
 
