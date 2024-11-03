@@ -395,12 +395,149 @@ if __name__ == "__main__":
     asyncio.run(main())
 ```
 
-There's not a way for me to implement sleeping for a set number of cycles, so I've implemented a simple `Sleep` type that lets me use a generator as a coroutine and sleep for a given number of cycles. Which brings use to the event loop, which is what's causing the `Sleep` coroutine to iterate and update the `cycles` counter.
+There's not a way to implement sleeping for a set number of cycles, so here I've implemented a simple `Sleep` type that uses a generator as a coroutine to sleep for a given number of cycles. Which brings us to event loops, which is what's causing the `Sleep` coroutine to iterate and update the `cycles` counter.
 
 ### The Event Loop
 
+The event loop is what coordinates all the running coroutines, taking control when one yields and iterates all the others in turn giving them each control. In many of the earlier examples there's a `while` loop in the `main` function, it is a very rudimentary "event loop" managing each of the coroutines.
 
+A more fully featured event loop should provide a way to add new top level tasks, stop all running tasks, and offer futures. For the sake of exercise lets look at a simple event loop implementation using generators.
+
+[Example 12](example-12-simple-event-loop.py)
+```py
+import time
+
+class Future:
+    def __init__(self):
+        self.finished = False
+        self.value = None
+
+    def close(self):
+        self.finished = True
+
+    def send(self, _):
+        if self.finished:
+            err = StopIteration()
+            err.value = self.value
+            raise err
+
+    def __iter__(self):
+        return self
+
+    def __next__(self):
+        return self.send(None)
+
+class Task(Future):
+    def __init__(self, coro):
+        super().__init__()
+        self.coro = coro
+
+    def send(self, value):
+        try:
+            return self.coro.send(value)
+        except StopIteration as e:
+            self.value = e.value
+            self.finished = True
+            raise e
+
+    def close(self):
+        self.coro.close()
+        super().close()
+
+class EventLoop:
+    running_loop = None
+    def __init__(self):
+        self.tasks = []
+
+    def create_task(self, coro):
+        future = Task(coro)
+        self.tasks.append(future)
+        return future
+
+    def run_until_complete(self):
+        EventLoop.running_loop = self
+        while self.tasks:
+            task = self.tasks.pop(0)
+            try:
+                task.send(None)
+                self.tasks.append(task)
+            except StopIteration:
+                pass
+
+    def stop(self):
+        for task in self.tasks:
+            task.close()
+
+        self.tasks.clear()
+        EventLoop.running_loop = None
+
+    @classmethod
+    def run(cls, coro):
+        loop = cls()
+        loop.create_task(coro)
+        loop.run_until_complete()
+        loop.stop()
+
+def sleep(delay):
+    start_time = time.time()
+    while time.time() < start_time + delay:
+        yield
+
+def do_stuff():
+    yield from sleep(1)
+    print("Doing more stuff")
+    result = yield from do_more_stuff()
+    print(result)
+
+def do_more_stuff():
+    yield from sleep(2)
+
+    return "Hello World"
+
+def countdown():
+    for i in range(10, 0, -1):
+        print(i)
+        yield from sleep(1)
+
+    print("TAKE OFF!!!!!")
+
+def main():
+    future = EventLoop.running_loop.create_task(countdown())
+    yield from sleep(0.5)
+    yield from do_stuff()
+    yield from future
+    print("Main is exiting")
+
+if __name__ == "__main__":
+    EventLoop.run(main())
+```
+
+This implements a basic loop with the ability to create tasks and stop running tasks. It provides a `Future` type for awaiting a value and a `Task` type that wraps a coroutine in a future. It also has a basic `sleep` function that yields until a given delay has passed.
+
+Running this starts the `main` coroutine which in turn creates a new top level task for the `countdown` coroutine. This `countdown` coroutine then runs in "parallel" with `main` and the coroutines it yields from. `main` even yields from the `countdown` future to wait for it to finish before exiting.
+
+This is a very basic event loop, but it shows how you can use generators to implement a simple event loop. At the most basic level this is doing what Python's `asyncio` package is doing under the hood.
+
+You can check out [Example 13](example-13-event-loop-asyncio.py) to see how these coroutines would be written using Python's `asyncio` and async/await.
 
 ## How Threads Differ
 
+Now that we've gone through how async/await works and implemented our own basic version using generators, you're probably wondering how this is different from using threads.
+
+Async/await lets functions yield back control to the event loop. So async/await only works with functions and relies on the functions themselves to handle task switching. Everything happens within the runtime of the application since the event loop is part of the application code. This makes it great for IO bound tasks, as the function knows when it is waiting on an IO task.
+
+Threads on the other hand are an OS level construct that allows code to run in parallel, not just functions. Concurrency comes from running threads on separate CPU threads giving true parallelism. In cases where there aren't enough CPU threads the OS can pause threads in an application and switch to another thread, this happens entirely outside the application code.
+
+Because threads can work without regard for what is happening in the code, they are excellent for CPU bound tasks. They can run code in parallel and take advantage of multiple CPU cores. This is why threads are often used for image processing, machine learning, and other computation heavy tasks.
+
 ## Async/Await & Parallelism
+
+Python's async/await is not parallelism, it is concurrency. The event loop can keep multiple tasks working towards completion but only one task is running at a time. In other languages it is possible to run tasks in multiple threads to get parallel async/await tasks but because of Python's GIL this is not currently possible.
+
+Future versions of Python may be free threaded, allowing for parallel async/await tasks. Until then, if you need parallelism you'll need to use threads or processes. `asyncio` actually has tools to run functions in a thread that you can await a result from, check out [run_in_executor](https://docs.python.org/3/library/asyncio-eventloop.html#asyncio.loop.run_in_executor) for more information.
+
+## Conclusion
+
+Async/await is a powerful tool that can help you write more effective code. It can seem a bit magical but at its core it is actually quite simple. Iteration, generators, and a clever application of fairly common syntax is all it bools down to.
+
+I hope you found this article useful for improving your understanding of how async/await works and that it gave you a better understanding of how to use it in your own code.
