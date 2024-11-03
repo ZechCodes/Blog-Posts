@@ -20,6 +20,7 @@ Async/Await allows functions to release control so other functions can run. This
 
 When a function has to wait on something slow it blocks the running thread, stopping all code from running. This often is the result of some kind of network request: database query, web request, etc. Let's look at an example requesting multiple web pages using the `requests` package.
 
+[Example 1](example-1-sync-requests.py)
 ```py
 import requests
 import time
@@ -55,6 +56,7 @@ It would be much faster if the requests didn't block each other and could run co
 
 Async/Await lets functions release control when they block, allowing other functions to run in that downtime. This makes it possible to run some code concurrently and maximize how much of the time code is running. Let's look at the same example but using the `httpx` package so the requests can be done concurrently. 
 
+[Example 2](example-2-async-requests.py)
 ```py
 import asyncio
 import httpx
@@ -90,11 +92,314 @@ This code is a bit more complex, but when we run it we see that the run time is 
 
 ## What Even Is Async/Await
 
-### Iterators & Generators
+Async/Await can seem a bit intimidating and magical, at its core though it is actually quite simple. So lets dive in and get a better understanding of how an async runtime can accept control back from a function when it needs to block and coordinate running other functions in that downtime.
+
+### Iterators
+
+Let's imagine that when we request a web page we get back an iterable, like a list. In this iterable we get `WAIT` until the response is received, at which point the iterable gives the response.
+
+[Example 3](example-3-single-request-iterator.py)
+```py
+WAIT = object()
+request = [WAIT, WAIT, WAIT, "Hello World from Request One!!!"]
+for next_iteration in request:
+    match next_iteration:
+        case str() as result:
+            print(f"The result is {result!r}")
+        case _:
+            pass
+```
+
+Next lets imagine we have a second request iterable. We could process the first request and then the second. This would block on the first request and then run the second request.
+
+[Example 4](example-4-multiple-request-iterators-blocking.py)
+```py
+WAIT = object()
+
+def process(request_iterator):
+    match request_iterator.pop(0):
+        case str() as result:
+            return result
+        case _:
+            return ""
+
+def main():
+    request_1 = [WAIT, WAIT, WAIT, "Request One!!!"]
+    request_2 = [WAIT, "Request Two!!!"]
+    result = process(request_1)
+    while not result:
+        result = process(request_1)
+
+    print(result)
+
+    result = process(request_2)
+    while not result:
+        result = process(request_2)
+
+    print(result)
+
+if __name__ == "__main__":
+    main()
+```
+
+Running this we see that the first request finishes before the second because it is started first and "blocks" until it is done.
+
+Now lets try interleaving these iterators to get a form of concurrency.
+
+[Example 5](example-5-multiple-request-iterators-concurrent.py)
+```py
+WAIT = object()
+
+def process(request_iterator):
+    match request_iterator.pop(0):
+        case str() as result:
+            return result
+        case _:
+            return ""
+
+def main():
+    request_1 = [WAIT, WAIT, WAIT, "Request One!!!"]
+    request_2 = [WAIT, "Request Two!!!"]
+    request_iterators = [request_1, request_2]
+    while request_iterators:
+        for i, request_iterator in enumerate(request_iterators):
+            if result := process(request_iterator):
+                print(result)
+                del request_iterators[i]
+
+if __name__ == "__main__":
+    main()
+```
+Here we're creating a stack of iterators and iterating through that over and over. When we reach the end of an iterator it is removed from the stack. This results in request 1 being processed, then request 2, then request 1 again, and so on until we get a result from one of them. At that point we remove it from the stack and continue with the other.
+
+When we run this code we see that request 2 finishes first because it has less waits before the result.
+
+This is interesting but not entirely useful. Lists are great for sequences of data but there's no way to add any logic to it.
+
+### Generators: Iterators that run code
+
+Enter generators. Generators are functions that behave has iterators using the `yield` statement. When they run, their code acts like code in a function. When a `yield` is used though the function pauses and a value is sent back to the code that invoked the generator. The generator function can then be reactivated and it will pick back up at the yield and run like a normal function again.
+
+Let's take a quick crash course through generators by looking at a couple of examples.
+
+[Example 6](example-6-generator-example.py)
+```py
+def example_generator():
+    print("Hello")
+    yield
+    print("World")
+    return "Result"
+
+def main():
+    example = example_generator()
+    print("Starting")
+    try:
+        example.send(None)
+        print("Paused")
+        example.send(None)
+    except StopIteration as err:
+        print(f"Finished with {err.value}")
+
+if __name__ == "__main__":
+    main()
+```
+
+Let's make this more clear by walking through it step by step:
+
+1. `main` creates the `example_generator`, no code in the generator runs at this point.
+2. `main` prints "Starting"
+3. `main` calls `send` on the generator `example`, this runs the code in the generator function
+4. `example_generator` prints "Hello" and then yields, pausing the generator function, giving control back to `main`
+5. `main` runs and prints "Paused"
+6. `main` calls `send` on the generator `example`, this runs the code in the generator function, picking up where it paused
+7. `example_generator` prints "World" and then returns `"Result"`, this raises a `StopIteration` error
+8. `main` catches the raised error, captures the return from the `value` property of the exception, and prints "Finished with Result" before exiting
+
+Now let's try something a bit crazier.
+
+[Example 7](example-7-generator-yield-from.py)
+```py
+def generator_a():
+    returned_value = yield from generator_b()
+    print(f"A got {returned_value!r}")
+    return "Return From A"
+
+def generator_b():
+    yield "Yielded From B"
+    return "Return From B"
+
+def main():
+    gen = generator_a()
+    try:
+        print(f"Main got {gen.send(None)!r}")
+        print(f"Main got {gen.send(None)!r}")  # This print causes StopIteration and doesn't print
+    except StopIteration as err:
+        print(f"Main got {err.value!r}")
+
+if __name__ == "__main__":
+    main()
+```
+
+Here we're using `yield from` to start a generator from within a generator passing control downwards. A generator started with `yield from` will `yield` into the function that called `send` on the top level generator. Let's walk through this to try and make that clearer:
+
+1. `main` creates `generator_a`
+2. `main` calls `send` on `gen` running its code
+3. `generator_a` then yields from `generator_b`
+4. `generator_b` then yields `"Yielded From B"`
+5. `main` prints "Main got 'Yielded From B'"
+6. `main` calls `send` on `gen`
+7. `generator_b` returns `"Return From B"`
+8. `generator_a` prints "A got 'Return From B'"
+9. `generator_a` returns `"Return From A"`
+10. `main` prints "Main got 'Return From A'"
+11. The program exits
+
+Ok, everyone got ok? Everyone got that? No? Yeah, it's a lot to process. Don't worry about it too much, the only takeaway you need is the idea that a generator is an iterator that can also run code. Here's a very simple example showing that a generator is just a very complex iterator that runs code in between values:
+
+[Example 8](example-8-generators-are-iterators.py)
+```py
+def generator():
+    for i in range(5):
+        print(f"Yielding {i}")
+        yield i
+
+def main():
+    for i in generator():
+        print(f"main got {i}")
+        
+if __name__ == "__main__":
+    main()
+```
+
+That means we can take [Example 5](example-5-multiple-request-iterators-concurrent.py) and rewrite it as generators:
+
+[Example 9](example-9-multiple-request-generators-concurrent.py)
+```py
+def process(request_iterator):
+    try:
+        request_iterator.send(None)
+    except StopIteration as err:
+        return err.value
+    else:
+        return
+
+def request_1_generator():
+    for i in range(3):
+        yield
+
+    return "Request One!!!"
+
+def request_2_generator():
+    for i in range(1):
+        yield
+
+    return "Request Two!!!"
+
+def main():
+    request_1 = request_1_generator()
+    request_2 = request_2_generator()
+    request_iterators = [request_1, request_2]
+    while request_iterators:
+        for i, request_iterator in enumerate(request_iterators):
+            if result := process(request_iterator):
+                print(result)
+                del request_iterators[i]
+
+if __name__ == "__main__":
+    main()
+```
+
+That is functionally the same as [Example 5](example-5-multiple-request-iterators-concurrent.py) but it's using `yield` to indicate a "wait" and generators instead of lists.
+
+I think at this point if you squint at that code you can start to see how this is going to turn into async/await. 
 
 ### Coroutines: Generators by a different name
 
+That was a lot to take in but I think the fundamental structure of async functions and awaits is starting to come together. This is probably a good time to introduce "coroutines." A coroutine is an async function that is implemented as a generator. A coroutine uses `yield` to pass control back upwards to the code that owns the top level generator object, this is how coroutines pause when they have to wait on something that is blocking. 
+
+A coroutine can also use `yield from` to wait on another coroutine, passing control downwards to that new coroutine. You can think of this as calling that coroutine and letting it take control. Any yields in the new coroutine will appear to be coming from the calling coroutine. Here's a simple example:
+
+[Example 10](example-10-simple-yield-from.py)
+```py
+def coroutine_a():
+    for _ in range(5):
+        yield
+
+    result = yield from coroutine_b()
+    print(result)
+
+def coroutine_b():
+    for _ in range(10):
+        yield
+
+    return "Hello World"
+
+def main():
+    wait_counter = 0
+    routine = coroutine_a()
+    while True:
+        try:
+            routine.send(None)
+            wait_counter += 1
+        except StopIteration:
+            break
+
+    print(f"Waited {wait_counter} times")
+
+if __name__ == "__main__":
+    main()
+```
+
+When this is run we see that it says it waited 15 times. There are 5 waits in `coroutine_a` and another 10 waits in `coroutine_b`. So our `main` function is seeing the waits in `coroutine_b` even thought it only ran `coroutine_a`.
+
+We also see that when `coroutine` used `yield from` to run `coroutine_b` it was able to capture the return the same as if `coroutine_b` had been a standard function that it had called.
+
+There's no real magic to coroutines, they're just a specific use of generators that leverages pretty every single generator feature that Python offers.
+
+### Translating This to Async/Await
+
+Alright, we've covered a lot of stuff and built up to coroutines. At this point we've implemented async/await just using generator syntax. Python has special syntax for it's native coroutines just to make it easier to tell when you're writing a generator and when you're writing a coroutine. Ultimately async/await in Python is syntactic sugar for a special kind of generator.
+
+So let's look at a rough and quick translation of the `coroutine_a` and `coroutine_b` to async/await syntax.
+
+```py
+import asyncio
+
+cycles = 0
+
+class Sleep:
+    def __init__(self, cycles):
+        self.cycles = cycles
+
+    def __await__(self):
+        """Dropping into the async/await API to let us use a generator as a coroutine."""
+        global cycles
+        for _ in range(self.cycles):
+            cycles += 1
+            yield
+
+async def coroutine_a():
+    await Sleep(5)
+    result = await coroutine_b()
+    print(result)
+
+async def coroutine_b():
+    await Sleep(10)
+    return "Hello World"
+
+async def main():
+    await coroutine_a()
+    print(f"Waited for {cycles} cycles")
+
+if __name__ == "__main__":
+    asyncio.run(main())
+```
+
+There's not a way for me to implement sleeping for a set number of cycles, so I've implemented a simple `Sleep` type that lets me use a generator as a coroutine and sleep for a given number of cycles. Which brings use to the event loop, which is what's causing the `Sleep` coroutine to iterate and update the `cycles` counter.
+
 ### The Event Loop
+
+
 
 ## How Threads Differ
 
