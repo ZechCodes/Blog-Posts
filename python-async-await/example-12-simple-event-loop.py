@@ -53,13 +53,21 @@ class EventLoop:
 
     def run_until_complete(self):
         EventLoop.running_loop = self
-        while self.tasks:
-            task = self.tasks.pop(0)
-            try:
-                task.send(None)
-                self.tasks.append(task)
-            except StopIteration:
-                pass
+        try:
+            while True:
+                while self.tasks:
+                    task = self.tasks.pop(0)
+                    try:
+                        task.send(None)
+                        self.tasks.append(task)
+                    except StopIteration:
+                        pass
+
+                else:
+                    break
+
+        finally:
+            self.stop()
 
     def stop(self):
         for task in self.tasks:
