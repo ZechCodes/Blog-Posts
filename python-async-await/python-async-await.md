@@ -1,6 +1,6 @@
 # Understanding Async/Await in Python
 
-Async/Await, a powerful tool in Python, is a concept that can significantly enhance your programming skills. In this post, we'll delve into the high-level workings of Async/Await and then venture into its fundamental implementation. We'll also compare and contrast Async/Await with threads, providing you with a comprehensive understanding of this fantastic tool.
+Async/await, a powerful tool in Python, is a concept that can significantly enhance your programming skills. In this post, we'll delve into the high-level workings of async/await and then venture into its fundamental implementation. We'll also compare and contrast async/await with threads, providing you with a comprehensive understanding of this fantastic tool.
 
 ### A Quick Aside About This Article
 
@@ -14,11 +14,11 @@ uv run example-1-sync-requests.py
 
 ## Why Use Async/Await
 
-Async/Await allows functions to release control to run other functions. Releasing is very helpful when a function needs to wait on something that blocks until a response is received.
+Async/await allows functions to release control to run other functions. Releasing is very helpful when a function needs to wait on something that blocks until a response is received.
 
 ### The Problem - Blocking Functions
 
-When a function has to wait on something slow, it blocks the running thread, stopping all code from running. This often results from some kind of network request: database query, web request, etc. Let's look at an example of requesting multiple web pages using the `requests` package.
+When a function has to wait on something slow, it blocks the current thread, stopping all code from running in it. This often results from some kind of network request: database query, web request, etc. Let's look at an example of requesting multiple web pages using the `requests` package.
 
 [Example 1](example-1-sync-requests.py)
 ```py
@@ -50,11 +50,11 @@ if __name__ == "__main__":
 
 The total run time is roughly the same as the cumulative run time of each request. So, it's apparent that the requests are being made in sequence, and the code is stopping as it waits for each request response.
 
-It would be much faster if the requests didn't block each other and could run concurrently. Here is where Async/Await comes in.
+It would be much faster if the requests didn't block each other and could run concurrently. Here is where async/await comes in.
 
 ### A Solution - Async/Await
 
-Async/Await lets functions release control when they block, enabling concurrency and maximizing how much of the time the code is running. Let's look at the same example but use the `httpx` package so the requests run concurrently. 
+Async/await lets functions release control when they block, enabling concurrency and maximizing how much of the time the code is running. Let's look at the same example but use the `httpx` package so the requests run concurrently. 
 
 [Example 2](example-2-async-requests.py)
 ```py
@@ -92,7 +92,7 @@ When we run it, we see that the run time is always less than the cumulative run 
 
 ## What Even Is Async/Await
 
-Async/Await can seem a bit intimidating and magical, but at its core, it is actually quite simple. So, let's dive in and get a better understanding of how an async runtime can accept control back from a function when it needs to block and coordinate running other functions in that downtime.
+Async/await can seem a bit intimidating and magical, but at its core, it is actually quite simple. So, let's dive in and get a better understanding of how an async runtime can accept control back from a function when it needs to block and coordinate running other functions in that downtime.
 
 ### Iterators
 
@@ -142,7 +142,7 @@ if __name__ == "__main__":
     main()
 ```
 
-When we run this, we see that the first request finishes before the second because it is started first and "blocks" until it is done.
+When we run this, we see that the first request finishes before the second because it is started first and blocks until it is done.
 
 Let's try interleaving these iterators to get a form of concurrency.
 
@@ -535,7 +535,7 @@ if __name__ == "__main__":
 
 This example implements a loop that can create tasks and stop running tasks. It provides a `Future` type for awaiting a value and a `Task` type that wraps a coroutine in a future. It also has a primitive `sleep` function that yields until a given time delay has passed.
 
-Running this starts the `main` coroutine and creates a new top-level task for the `countdown` coroutine. This `countdown` coroutine then runs concurrently with `main` and the coroutines it yields from. `main even yields from the `countdown` future to wait on it before exiting.
+Running this starts the `main` coroutine and creates a new top-level task for the `countdown` coroutine. This `countdown` coroutine then runs concurrently with `main` and the coroutines it yields from. `main` even yields from the `countdown` future to wait on it before exiting.
 
 This implementation is barebones, but it shows how to implement a simple event loop for generator-based coroutines. At the most fundamental level, this is doing what Python's `asyncio` package is doing under the hood when you call `asyncio.run`.
 
