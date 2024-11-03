@@ -1,10 +1,10 @@
 # Understanding Async/Await in Python
 
-Async/Await is a powerful tool available to you, so it is important to understand how and when you can utilize it. In this post we're going to explore the high level of how Async/Await works and then dive a bit deeper into the more fundamental implementation. We'll also explore the differences between Async/Await and threads.
+Async/Await, a powerful tool in Python, is a concept that can significantly enhance your programming skills. In this post, we'll delve into the high-level workings of Async/Await and then venture into its fundamental implementation. We'll also compare and contrast Async/Await with threads, providing you with a comprehensive understanding of this fantastic tool.
 
 ### A Quick Aside About This Article
 
-All the examples are available to run on my GitHub. Just clone my [Blog Posts](https://github.com/ZechCodes/Blog-Posts/) repository, open the "python-async-await" directory, run the example you're interested in using [uv](https://docs.astral.sh/uv/getting-started/). 
+All the examples discussed in this post are available for you to run on my GitHub. Clone my [Blog Posts](https://github.com/ZechCodes/Blog-Posts/) repository, navigate to the "python-async-await" directory, and run the example you're interested in using [uv](https://docs.astral.sh/uv/getting-started/). This hands-on approach will allow you to grasp the concepts more effectively. 
 
 ```shell
 git clone https://github.com/ZechCodes/Blog-Posts/
@@ -14,11 +14,11 @@ uv run example-1-sync-requests.py
 
 ## Why Use Async/Await
 
-Async/Await allows functions to release control so other functions can be run. This is very helpful when a function needs to wait on something that blocks until a response is received. 
+Async/Await allows functions to release control to run other functions. Releasing is very helpful when a function needs to wait on something that blocks until a response is received.
 
 ### The Problem - Blocking Functions
 
-When a function has to wait on something slow, it blocks the running thread, stopping all code from running. This often is the result of some kind of network request: database query, web request, etc. Let's look at an example requesting multiple web pages using the `requests` package.
+When a function has to wait on something slow, it blocks the running thread, stopping all code from running. This often results from some kind of network request: database query, web request, etc. Let's look at an example of requesting multiple web pages using the `requests` package.
 
 [Example 1](example-1-sync-requests.py)
 ```py
@@ -48,13 +48,13 @@ if __name__ == "__main__":
     main()
 ```
 
-You'll notice that the total run time is roughly the same as the cumulative run time of each request. So its apparent that the requests are being made in sequence and the code is stopping as it waits for each request response.
+The total run time is roughly the same as the cumulative run time of each request. So, it's apparent that the requests are being made in sequence, and the code is stopping as it waits for each request response.
 
-It would be much faster if the requests didn't block each other and could run concurrently, this is where Async/Await comes in.
+It would be much faster if the requests didn't block each other and could run concurrently. Here is where Async/Await comes in.
 
 ### A Solution - Async/Await
 
-Async/Await lets functions release control when they block, allowing other functions to run in that downtime. This makes it possible to run some code concurrently and maximize how much of the time code is running. Let's look at the same example but using the `httpx` package so the requests can be done concurrently. 
+Async/Await lets functions release control when they block, enabling concurrency and maximizing how much of the time the code is running. Let's look at the same example but use the `httpx` package so the requests run concurrently. 
 
 [Example 2](example-2-async-requests.py)
 ```py
@@ -88,15 +88,15 @@ if __name__ == "__main__":
     asyncio.run(main())
 ```
 
-This code is a bit more complex, but when we run it we see that the run time is always less than the cumulative run time. We can even see that the run time is only a little longer than the slowest request. This tells us that each request is running concurrently and that no request is blocking the others while waiting for the response. 
+When we run it, we see that the run time is always less than the cumulative run time and slightly longer than the slowest request. From this, we can gather that each request runs concurrently and that no request is blocking while waiting for a response.
 
 ## What Even Is Async/Await
 
-Async/Await can seem a bit intimidating and magical, at its core though it is actually quite simple. So lets dive in and get a better understanding of how an async runtime can accept control back from a function when it needs to block and coordinate running other functions in that downtime.
+Async/Await can seem a bit intimidating and magical, but at its core, it is actually quite simple. So, let's dive in and get a better understanding of how an async runtime can accept control back from a function when it needs to block and coordinate running other functions in that downtime.
 
 ### Iterators
 
-Let's imagine that when we request a web page we get back an iterable, like a list. In this iterable we get `WAIT` until the response is received, at which point the iterable gives the response.
+Let's imagine that when we request a web page, we receive an iterable, like a list. From this iterable we get `WAIT` until the response is received, at which point the iterable gives that response.
 
 [Example 3](example-3-single-request-iterator.py)
 ```py
@@ -110,7 +110,7 @@ for next_iteration in request:
             pass
 ```
 
-Next lets imagine we have a second request iterable. We could process the first request and then the second. This would block on the first request and then run the second request.
+Next, let's imagine we have a second request iterable. We could process the first request and then the second. It would block on the first request and then run the second request.
 
 [Example 4](example-4-multiple-request-iterators-blocking.py)
 ```py
@@ -121,7 +121,7 @@ def process(request_iterator):
         case str() as result:
             return result
         case _:
-            return ""
+            return""
 
 def main():
     request_1 = [WAIT, WAIT, WAIT, "Request One!!!"]
@@ -142,9 +142,9 @@ if __name__ == "__main__":
     main()
 ```
 
-Running this we see that the first request finishes before the second because it is started first and "blocks" until it is done.
+When we run this, we see that the first request finishes before the second because it is started first and "blocks" until it is done.
 
-Now lets try interleaving these iterators to get a form of concurrency.
+Let's try interleaving these iterators to get a form of concurrency.
 
 [Example 5](example-5-multiple-request-iterators-concurrent.py)
 ```py
@@ -155,7 +155,7 @@ def process(request_iterator):
         case str() as result:
             return result
         case _:
-            return ""
+            return""
 
 def main():
     request_1 = [WAIT, WAIT, WAIT, "Request One!!!"]
@@ -170,17 +170,17 @@ def main():
 if __name__ == "__main__":
     main()
 ```
-Here we're creating a stack of iterators and iterating through that over and over. When we reach the end of an iterator it is removed from the stack. This results in request 1 being processed, then request 2, then request 1 again, and so on until we get a result from one of them. At that point we remove it from the stack and continue with the other.
+Here, we're creating a stack of iterators and iterating through them repeatedly. When we reach the end of an iterator, it is removed from the stack. This results in processing request 1, then request 2, then request 1 again, and so on, until we get a result from one of them. At that point, we remove it from the stack and continue with the other.
 
-When we run this code we see that request 2 finishes first because it has less `WAIT`s before the result.
+When we run this code, we see that request 2 finishes first because it has fewer `WAIT`s before the result.
 
-This is interesting but not entirely useful. Lists are great for sequences of data but there's no way to run any logic between data.
+Lists are interesting in this use case but only somewhat useful. They're great for data sequences, but we need a way to run logic between the data.
 
 ### Generators: Iterators that run code
 
-Enter generators. Generators are functions that behave has iterators using the `yield` statement. When they run, their code acts like code in a function. When a `yield` is used though the function pauses and a value is sent back to the code that invoked the generator. The generator function can then be reactivated, picking back up at the yield and continuing as normal.
+Enter generators. Generators are functions that behave like iterators using the `yield` statement. When they run, their code acts like code in a function. When a `yield` is used, though, the function pauses, and a value is sent back to the code that invoked the generator. The generator function is then reactivated, picking back up at the yield and continuing as normal.
 
-Let's take a quick crash course through generators by looking at a couple of examples.
+Let's take a quick crash course through generators by looking at a few examples.
 
 [Example 6](example-6-generator-example.py)
 ```py
@@ -204,18 +204,18 @@ if __name__ == "__main__":
     main()
 ```
 
-Let's make this more clear by walking through it step by step:
+Let's go through that step by step to help better understand it.
 
-1. `main` creates the `example_generator`, no code in the generator runs at this point.
+1. `main` creates the `example_generator`. No code in the generator runs at this point.
 2. `main` prints "Starting"
-3. `main` calls `send` on the generator `example`, this runs the code in the generator function
+3. `main` calls `send` on the generator `example` running the code in the generator function
 4. `example_generator` prints "Hello" and then yields, pausing the generator function, giving control back to `main`
 5. `main` runs and prints "Paused"
-6. `main` calls `send` on the generator `example`, this runs the code in the generator function, picking up where it paused
-7. `example_generator` prints "World" and then returns `"Result"`, this raises a `StopIteration` error
+6. `main` calls `send` on the generator `example` running the code in the generator function, picking up where it paused
+7. `example_generator` prints "World" and then returns `"Result"` raising a `StopIteration` error
 8. `main` catches the raised error, captures the return from the `value` property of the exception, and prints "Finished with Result" before exiting
 
-Now let's try something a bit crazier.
+Now, let's try something a bit crazier.
 
 [Example 7](example-7-generator-yield-from.py)
 ```py
@@ -240,12 +240,12 @@ if __name__ == "__main__":
     main()
 ```
 
-Here we're using `yield from` to start a generator from within a generator passing control downwards. A generator started with `yield from` will `yield` into the function that called `send` on the top level generator. Let's walk through this to try and make that clearer:
+Here, we're using `yield from` to start a generator from within a generator, passing control downwards. A generator started with `yield from` will `yield` into the function that called `send` on the top-level generator. Let's walk through this to try and make that more understandable:
 
 1. `main` creates `generator_a`
 2. `main` calls `send` on `gen` running its code
 3. `generator_a` then yields from `generator_b`
-4. `generator_b` then yields `"Yielded From B"`
+4. `generator_b` then yields ` "Yielded From B"`
 5. `main` prints "Main got 'Yielded From B'"
 6. `main` calls `send` on `gen`
 7. `generator_b` returns `"Return From B"`
@@ -255,7 +255,7 @@ Here we're using `yield from` to start a generator from within a generator passi
 11. The program exits
 
 > #### Helpful Info
-> `yield from` is a magical bit of syntax. It's actually syntactic sugar for doing a very specific thing: passing yielded values back up the call stack.
+> `yield from` is a magical bit of syntax. It's syntactic sugar for doing something specific: passing yielded values back up the call stack.
 > 
 > Here's a quick example:
 > ```py
@@ -268,7 +268,7 @@ Here we're using `yield from` to start a generator from within a generator passi
 > ```
 > Isn't `yield from` so much nicer?
 
-Everyone ok? Everyone got that? It's a lot to process so don't worry about it too much. All you need to takeaway from this is the idea that a generator is an iterator that can also run code. Here's a very simple example showing that a generator is just a very complex iterator that runs code in between values:
+Everyone ok? Everyone got that? It's a lot to process, so don't worry about it. All you need to take away from this is that a generator is an iterator that also runs code. Here's an elementary example showing that a generator is just a very complex iterator that runs code in between values:
 
 [Example 8](example-8-generators-are-iterators.py)
 ```py
@@ -323,15 +323,15 @@ if __name__ == "__main__":
     main()
 ```
 
-That is functionally the same as [Example 5](example-5-multiple-request-iterators-concurrent.py), but it's using `yield` to indicate a "wait" and generators instead of lists.
+That is functionally the same as [Example 5](example-5-multiple-request-iterators-concurrent.py), but it uses `yield` to indicate a "wait" and generators instead of lists.
 
-I think at this point if you squint really hard you might actually begin to be able to see how this is going to turn into async/await. 
+At this point, if you squint really hard, you might begin to be able to see how this is going to turn into async/await. 
 
 ### Coroutines: Generators by a different name
 
-That was a lot to take in, but I think the fundamental structure of async functions and awaits is starting to come together. This is probably a good time to introduce "coroutines." A coroutine is an async function that is implemented as a generator. A coroutine uses `yield` to pass control back upwards to the code that owns the top level generator object, this is how coroutines pause when they have to wait on something that is blocking. 
+That was a lot to take in, but the fundamental structure of async functions and awaits is starting to come together. Now is an excellent time to introduce "coroutines." A coroutine is an async function implemented as a generator. It uses `yield` to pass control back upwards to the code that owns the top-level generator object. This is how coroutines pause when they have to wait on something that is blocking. 
 
-A coroutine can also use `yield from` to wait on another coroutine, passing control downwards to that coroutine. You can think of this as calling that coroutine and letting it take control until it completes. Any yields in the new coroutine will appear to be coming from the calling coroutine. Here's a simple example:
+A coroutine can also use `yield from` to wait on another coroutine, passing control downwards to that coroutine. You can think of this as calling that coroutine and letting it take control until it completes. Any yields in the new coroutine appear to come from the calling coroutine. Here's a simple example:
 
 [Example 10](example-10-simple-yield-from.py)
 ```py
@@ -364,18 +364,19 @@ if __name__ == "__main__":
     main()
 ```
 
-When this is run we see that it says it waited 15 times. There are 5 waits in `coroutine_a` and another 10 waits in `coroutine_b`. So our `main` function is seeing the waits in `coroutine_b` even though it only ran `coroutine_a`.
+When run, we see that it says it has waited 15 times. There are five waits in `coroutine_a` and another 10 in `coroutine_b`. So our `main` function is seeing the waits in `coroutine_b` even though it only ran `coroutine_a`.
 
-We also see that when `coroutine_a` used `yield from` to run `coroutine_b` it was able to capture the return in very much the same way as if `coroutine_b` had been a standard function that it had called without `yield from`.
+We also see that when `coroutine_a` used `yield from` to run `coroutine_b`, it was able to capture the return in very much the same way as if `coroutine_b` had been a standard function that it had called without `yield from`.
 
-There's no real magic to coroutines, they're just a specific use of generators that leverages pretty much every single generator feature that Python has to offer.
+Coroutines are not magic; they are just a specific use of generators that leverage pretty much every single generator feature that Python has to offer.
 
 ### Translating This to Async/Await
 
-Alright, we've covered a lot of stuff and built up to coroutines. At this point we've implemented async/await using generator syntax. Python has special syntax for its native coroutines just to make it easier to distinguish between generators and coroutines. Ultimately async/await in Python is syntactic sugar for a special kind of generator.
+All right, we've covered much stuff and built up to coroutines. At this point, we've implemented async/await using generator syntax. Python has special syntax for its native coroutines to make distinguishing between generators and coroutines easier. Ultimately, async/await in Python is syntactic sugar for a special kind of generator.
 
-So let's look at a rough and quick conversion of `coroutine_a` and `coroutine_b` to the async/await syntax.
+So, let's look at a rough and quick conversion of `coroutine_a` and `coroutine_b` to the async/await syntax.
 
+[Example 11](example-11-translate-generators-to-async.py)
 ```py
 import asyncio
 
@@ -386,7 +387,7 @@ class Sleep:
         self.cycles = cycles
 
     def __await__(self):
-        """Dropping into the async/await API to let us use a generator as a coroutine."""
+        """ Dropping into the async/await API to let us use a generator as a coroutine."""
         global cycles
         for _ in range(self.cycles):
             cycles += 1
@@ -409,13 +410,13 @@ if __name__ == "__main__":
     asyncio.run(main())
 ```
 
-Python doesn't provide a way to sleep for a set number of cycles, so I've implemented a simple `Sleep` type that uses a generator as a coroutine to sleep for a given number of cycles. This brings us to event loops, which is what's causing the `Sleep` coroutine to iterate and update the `cycles` counter.
+Python doesn't provide a way to sleep for a set number of cycles, so I've implemented a simple `Sleep` type that uses a generator as a coroutine to sleep for a given number of cycles. This brings us to event loops, which cause the `Sleep` coroutine to iterate and update the `cycles` counter.
 
 ### The Event Loop
 
-The event loop is what coordinates all the running coroutines, taking control when one yields and iterates all the others in turn giving them each control. In many of the earlier examples there's a `while` loop in the `main` function, it is a very rudimentary "event loop" managing each of the coroutines.
+The event loop coordinates all the running coroutines, taking control when one yields and iterating all the others in turn, giving each control. In many of the earlier examples, there's a `while` loop in the `main` function; it is a very rudimentary "event loop" managing each of the coroutines.
 
-A more fully featured event loop should provide a way to add new top level tasks, stop all running tasks, and offer futures. For the sake of exercise lets look at a simple event loop implementation using generators.
+A more fully featured event loop should provide ways to add new top-level tasks, stop all running tasks, and offer futures. For the sake of exercise, let's look at a simple event loop implementation using generators.
 
 [Example 12](example-12-simple-event-loop.py)
 ```py
@@ -532,32 +533,32 @@ if __name__ == "__main__":
     EventLoop.run(main())
 ```
 
-This implements a basic loop with the ability to create tasks and stop running tasks. It provides a `Future` type for awaiting a value and a `Task` type that wraps a coroutine in a future. It also has a basic `sleep` function that yields until a given time delay has passed.
+This example implements a loop that can create tasks and stop running tasks. It provides a `Future` type for awaiting a value and a `Task` type that wraps a coroutine in a future. It also has a primitive `sleep` function that yields until a given time delay has passed.
 
-Running this starts the `main` coroutine which in turn creates a new top level task for the `countdown` coroutine. This `countdown` coroutine then runs concurrently with `main` and the coroutines it yields from. `main` even yields from the `countdown` future to wait on it before exiting.
+Running this starts the `main` coroutine and creates a new top-level task for the `countdown` coroutine. This `countdown` coroutine then runs concurrently with `main` and the coroutines it yields from. `main even yields from the `countdown` future to wait on it before exiting.
 
-This is very basic, but it shows how you can implement a simple event loop for generator based coroutines. At the most fundamental level this is doing what Python's `asyncio` package is doing under the hood when you call `asyncio.run`.
+This implementation is barebones, but it shows how to implement a simple event loop for generator-based coroutines. At the most fundamental level, this is doing what Python's `asyncio` package is doing under the hood when you call `asyncio.run`.
 
-You can check out [Example 13](example-13-event-loop-asyncio.py) to see how these coroutines would be written using Python's `asyncio` and the async/await syntax.
+You can check out [Example 13](example-13-event-loop-asyncio.py) to see how to write these coroutines using Python's `asyncio` and the async/await syntax.
 
 ## How Threads Differ
 
-Now that we've gone through how async/await works and implemented our own basic version using generators, you're probably wondering how this is different from using threads.
+Now that we've gone through how async/await works and implemented a basic version using generators, you're probably wondering how this differs from using threads.
 
-Async/await lets functions yield control back to the event loop. So async/await only works with functions and relies on the functions themselves to indicate a braking point where a new task can be run. Everything happens within the runtime of the application since the event loop is part of the application code. This makes it great for IO bound tasks, as the function knows when it is waiting on an IO task.
+Async/await lets functions yield control back to the event loop. It only works with functions and relies on them to indicate when to run a new task. Since the event loop is part of the application code, everything happens within the application's runtime. This makes it great for IO-bound tasks, as the function knows when it is waiting on an IO task.
 
-Threads on the other hand are an OS level construct that allows code to run in parallel, not just functions. Concurrency comes from running threads on separate CPU cores giving true parallelism. In cases where there aren't enough CPU cores the OS can pause threads and switch to another thread, this happens entirely outside the application code.
+Threads, on the other hand, are an OS-level construct that allows code to run in parallel, not just functions. Concurrency comes from running threads on separate CPU cores, giving true parallelism. In cases where there aren't enough CPU cores, the OS can pause threads and switch to another thread; this happens entirely outside the application code.
 
-Because threads can work without regard for what is happening in the code, they are excellent for CPU bound tasks. They can run code in parallel and take advantage of multiple CPU cores. This is why threads are often used for image processing, machine learning, and other computation heavy tasks.
+Because threads can work without regard for what is happening in the code, they are excellent for CPU-bound tasks. They can run code in parallel and take advantage of multiple CPU cores, which is why they are often used for image processing, machine learning, and other computation-heavy tasks.
 
 ## Async/Await & Parallelism
 
-Python's async/await is not parallelism, it is concurrency. The event loop can keep multiple tasks working towards completion but only one task is running at a time. In other languages it is possible to run tasks in multiple threads to get parallel async/await tasks but because of Python's GIL this is not currently possible.
+Python's async/await is not parallelism; it is concurrency. The event loop can keep multiple tasks working towards completion, but only one can be active. In other languages, it is possible to run tasks in multiple threads to get parallel async/await tasks, but this is not currently possible because of Python's GIL.
 
-Future versions of Python may be free threaded, allowing for parallel async/await tasks. Until then, if you need parallelism you'll need to use threads or processes. `asyncio` actually has tools to run functions in a thread that you can await a result from, check out [run_in_executor](https://docs.python.org/3/library/asyncio-eventloop.html#asyncio.loop.run_in_executor) for more information.
+Future versions of Python may be free-threaded, allowing for parallel async/await tasks. Until then, if you need parallelism, you'll need to use threads or processes. `asyncio` actually has tools to run functions in a thread that you can await a result from; check out [run_in_executor](https://docs.python.org/3/library/asyncio-eventloop.html#asyncio.loop.run_in_executor) for more information.
 
 ## Conclusion
 
-Async/await is a powerful tool that can help you write more effective code. It can seem a bit magical but at its core it is actually quite simple. Iteration, generators, and a clever application of fairly common syntax is all it boils down to.
+Async/await is a powerful tool for writing more effective code. It can seem a bit magical, but at its core, it is actually quite simple. Iteration, generators, and a clever application of fairly common syntax are all it boils down to.
 
-I hope you found this article useful for improving your understanding of how async/await works and that it gave you a better understanding of how to use it in your own code.
+I hope you found this article helpful in improving your understanding of how async/await works and that it gave you a better understanding of how to use it in your code.
