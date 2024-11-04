@@ -1,6 +1,6 @@
 # Understanding Async/Await in Python
 
-Async/await, a powerful tool in Python, is a concept that can significantly enhance your programming skills. In this post, we'll delve into the high-level workings of async/await and then venture into its fundamental implementation. We'll also compare and contrast async/await with threads, providing you with a comprehensive understanding of this fantastic tool.
+Async/await is a powerful tool in Python that can significantly enhance your programming skills. In this post, we'll delve into the high-level workings of async/await and then venture into its fundamental implementation. We'll also compare and contrast async/await with threads, providing you with a comprehensive understanding of this fantastic tool.
 
 ### A Quick Aside About This Article
 
